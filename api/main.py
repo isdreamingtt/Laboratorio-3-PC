@@ -36,22 +36,44 @@ def dashboard(testamento: Optional[str] = None, libro: Optional[str] = None, cap
 
     if testamento:
         datos = datos[datos["testamento"] == testamento]
+
     if libro:
         datos = datos[datos["libro"] == libro]
-    if capitulo:
+
+    if capitulo is not None:
         datos = datos[datos["capitulo"] == capitulo]
 
     cantidad_por_libro = datos.groupby("libro").size().to_dict()
 
-    longitudes = datos["tokens"].apply(lambda t: len(t.split()))
-    longitud_promedio_por_libro = datos.assign(longitud=longitudes).groupby("libro")["longitud"].mean().round(2).to_dict()
+    longitudes = datos["tokens"].astype(str).apply(lambda texto: len(texto.split()))
+    longitudes = longitudes.astype(int)
 
-    todas_las_palabras = " ".join(datos["tokens"]).split()
+    datos_con_longitud = datos.copy()
+    datos_con_longitud["longitud"] = longitudes
+
+    longitud_promedio_por_libro = (datos_con_longitud.groupby("libro")["longitud"].mean())
+
+    longitud_promedio_por_libro = longitud_promedio_por_libro.round(2).to_dict()
+
+    todas_las_palabras = " ".join(datos["tokens"].astype(str)).split()
+
     frecuencias = {}
-    for palabra in todas_las_palabras:
-        frecuencias[palabra] = frecuencias.get(palabra, 0) + 1
 
-    top_palabras = sorted(frecuencias.items(), key=lambda x: x[1], reverse=True)[:20]
+    for palabra in todas_las_palabras:
+        if palabra not in frecuencias:
+            frecuencias[palabra] = 1
+        else:
+            frecuencias[palabra] += 1
+
+    frecuencias_ordenadas = sorted(frecuencias.items(), key=lambda x: x[1], reverse=True)
+
+    top_palabras = []
+
+    for palabra, frecuencia in frecuencias_ordenadas[:20]:
+        top_palabras.append({
+            "palabra": palabra,
+            "frecuencia": int(frecuencia)
+        })
 
     return {
         "cantidad_por_libro": cantidad_por_libro,
