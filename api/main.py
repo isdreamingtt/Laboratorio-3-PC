@@ -6,6 +6,8 @@ from .tfidf import CalculadorTFIDF
 from .procesador_semantico import BuscadorSemantico
 from sklearn.decomposition import PCA
 import numpy as np
+from gensim.models import Word2Vec
+from .generador_ngramas import GeneradorNGramas
 
 app = FastAPI()
 
@@ -15,6 +17,9 @@ preprocesador = Preprocesador()
 calculador_tfidf = CalculadorTFIDF()
 matriz_tfidf = calculador_tfidf.calcular_tfidf_corpus(lista_tokens)
 buscador = BuscadorSemantico(corpus, matriz_tfidf, preprocesador, calculador_tfidf)
+modelo_word2vec = Word2Vec(sentences=lista_tokens, vector_size=100, window=5, min_count=1, workers=4)
+generador_ngramas = GeneradorNGramas()
+generador_ngramas.entrenar(lista_tokens)
 
 @app.get("/")
 def home():
@@ -130,3 +135,58 @@ def pca_tfidf(dimensiones: int = 2):
         "varianza_explicada": pca.explained_variance_ratio_.tolist(),
         "puntos": puntos
     }
+
+@app.get("/pca-word2vec")
+def pca_word2vec(dimensiones: int = 2):
+    vectores_versiculos = []
+
+    for tokens in lista_tokens:
+        vectores_palabras = [modelo_word2vec.wv[palabra] for palabra in tokens if palabra in modelo_word2vec.wv]
+
+        if len(vectores_palabras) > 0:
+            vector_promedio = np.mean(vectores_palabras, axis=0)
+        else:
+            vector_promedio = np.zeros(modelo_word2vec.vector_size)
+
+        vectores_versiculos.append(vector_promedio)
+
+    matriz_vectores = np.array(vectores_versiculos)
+
+    pca = PCA(n_components=dimensiones)
+    coordenadas = pca.fit_transform(matriz_vectores)
+
+    puntos = []
+    for i in range(len(coordenadas)):
+        punto = {
+            "libro": corpus["libro"].iloc[i],
+            "testamento": corpus["testamento"].iloc[i],
+            "texto": corpus["texto"].iloc[i]
+        }
+        for d in range(dimensiones):
+            punto[f"componente_{d+1}"] = float(coordenadas[i][d])
+        puntos.append(punto)
+
+    return {
+        "varianza_explicada": pca.explained_variance_ratio_.tolist(),
+        "puntos": puntos
+    }
+
+@app.get("/generar")
+def generar(modelo: str, palabra_inicial: str, max_palabras: int = 20):
+    palabra_inicial = palabra_inicial.lower()
+
+    if palabra_inicial not in generador_ngramas.unigramas:
+        return {"error": "La palabra inicial no está en el vocabulario del corpus"}
+
+    if modelo == "unigrama":
+        texto = generador_ngramas.generar_unigrama(palabra_inicial, max_palabras)
+    elif modelo == "bigrama":
+        texto = generador_ngramas.generar_bigrama(palabra_inicial, max_palabras)
+    elif modelo == "trigrama":
+        texto = generador_ngramas.generar_trigrama(palabra_inicial, max_palabras)
+    elif modelo == "cuatrigrama":
+        texto = generador_ngramas.generar_cuatrigrama(palabra_inicial, max_palabras)
+    else:
+        return {"error": "Modelo no válido. Usa: unigrama, bigrama, trigrama o cuatrigrama"}
+
+    return {"modelo": modelo, "texto_generado": texto}
