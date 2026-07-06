@@ -8,6 +8,7 @@ from sklearn.decomposition import PCA
 import numpy as np
 from gensim.models import Word2Vec
 from .generador_ngramas import GeneradorNGramas
+from .similitud_coseno import SimilitudCoseno
 
 app = FastAPI()
 
@@ -17,9 +18,26 @@ preprocesador = Preprocesador()
 calculador_tfidf = CalculadorTFIDF()
 matriz_tfidf = calculador_tfidf.calcular_tfidf_corpus(lista_tokens)
 buscador = BuscadorSemantico(corpus, matriz_tfidf, preprocesador, calculador_tfidf)
-modelo_word2vec = Word2Vec(sentences=lista_tokens, vector_size=100, window=5, min_count=1, workers=4)
+modelo_word2vec = Word2Vec(sentences=lista_tokens, vector_size=100, window=5, min_count=1, workers=1, epochs=20, seed=42)
 generador_ngramas = GeneradorNGramas()
 generador_ngramas.entrenar(lista_tokens)
+similitud_coseno = SimilitudCoseno()
+
+vectores_versiculos_word2vec = [] #esto carga el word2vec una vez, evitando que se haga en cada consulta, ya que era muy pesado
+
+for tokens in lista_tokens:
+    vectores_palabras = []
+
+    for palabra in tokens:
+        if palabra in modelo_word2vec.wv:
+            vectores_palabras.append(modelo_word2vec.wv[palabra])
+
+    if len(vectores_palabras) > 0:
+        vector_promedio = np.mean(vectores_palabras, axis=0)
+    else:
+        vector_promedio = None
+
+    vectores_versiculos_word2vec.append(vector_promedio)
 
 @app.get("/")
 def home():
@@ -34,8 +52,7 @@ def test_corpus():
         "primer_texto_tokens": corpus["tokens"].iloc[0]
     }
     
-    #"gola"
-
+    
 @app.get("/dashboard")
 def dashboard(testamento: Optional[str] = None, libro: Optional[str] = None, capitulo: Optional[int] = None):
     datos = corpus
@@ -88,20 +105,81 @@ def dashboard(testamento: Optional[str] = None, libro: Optional[str] = None, cap
     }
 
 @app.get("/buscar")
-def buscar(consulta: str, k: int = 10):
-    resultados = buscador.buscar(consulta, k)
+def buscar(consulta: str, k: int = 10, modelo: str = "tfidf"):
+
+    modelo = modelo.lower()
+
+    if modelo == "tfidf":
+        resultados = buscador.buscar(consulta, k)
+
+    elif modelo == "word2vec":
+
+        texto_limpio_consulta, tokens_consulta = preprocesador.preprocesar_texto(consulta)
+
+        vectores_consulta = []
+
+        for palabra in tokens_consulta:
+            if palabra in modelo_word2vec.wv:
+                vector_palabra = modelo_word2vec.wv[palabra]
+                vectores_consulta.append(vector_palabra)
+
+        if len(vectores_consulta) == 0:
+            return {
+                "modelo": modelo,
+                "resultados": []
+            }
+
+        vector_consulta = np.mean(vectores_consulta, axis=0)
+
+        resultados = []
+
+        for i in range(len(vectores_versiculos_word2vec)):
+
+            vector_versiculo = vectores_versiculos_word2vec[i]
+
+            similitud = similitud_coseno.calcular_similitud_vectores(vector_consulta,vector_versiculo)
+
+            fila = corpus.iloc[i]
+
+            resultado = {
+                "libro": fila["libro"],
+                "capitulo": fila["capitulo"],
+                "versiculo": fila["versiculo"],
+                "texto": fila["texto"],
+                "similitud": similitud
+            }
+
+            resultados.append(resultado)
+
+        resultados.sort(key=lambda resultado: resultado["similitud"], reverse=True)
+        resultados = resultados[:k]
+
+    else:
+        return {
+            "error": "Modelo no válido. Por favor seleccionar entre tf-idf o word2vec."
+        }
 
     resultados_limpios = []
-    for r in resultados:
-        resultados_limpios.append({
-            "libro": r["libro"],
-            "capitulo": int(r["capitulo"]),
-            "versiculo": int(r["versiculo"]),
-            "texto": r["texto"],
-            "similitud": float(r["similitud"])
-        })
 
-    return {"resultados": resultados_limpios}
+    for resultado in resultados:
+
+        similitud = float(resultado["similitud"])
+
+        if similitud > 0:
+            resultado_limpio = {
+                "libro": resultado["libro"],
+                "capitulo": int(resultado["capitulo"]),
+                "versiculo": int(resultado["versiculo"]),
+                "texto": resultado["texto"],
+                "similitud": similitud
+            }
+
+            resultados_limpios.append(resultado_limpio)
+
+    return {
+        "modelo": modelo,
+        "resultados": resultados_limpios
+    }
 
 @app.get("/pca-tfidf")
 def pca_tfidf(dimensiones: int = 2):

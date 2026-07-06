@@ -13,7 +13,7 @@ def api_get(base_url: str, path: str, params: dict | None = None):
     respuesta = requests.get(
         f"{base_url.rstrip('/')}{path}",
         params=params,
-        timeout=10
+        timeout=30
     )
 
     respuesta.raise_for_status()
@@ -22,3 +22,12 @@ def api_get(base_url: str, path: str, params: dict | None = None):
 
 def obtener_dashboard(parametros):
     return api_get(API_URL, "/dashboard", parametros)
+
+def buscar_versiculos(consulta, k, modelo):
+    parametros = {
+        "consulta": consulta,
+        "k": k, #numero de resultados a consultar.
+        "modelo": modelo #esto es para poder cambiar el modeo, entre tf-idf y word2vec.
+    }
+
+    return api_get(API_URL, "/buscar", parametros)

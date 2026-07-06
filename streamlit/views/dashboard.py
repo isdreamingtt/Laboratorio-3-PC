@@ -47,8 +47,6 @@ def mostrar_filtros():
 
 def resumen(datos):
     cantidad_por_libro = datos["cantidad_por_libro"]
-    top_palabras = datos["top_palabras"]
-
     total_versiculos = sum(cantidad_por_libro.values())
     total_libros = len(cantidad_por_libro)
 
