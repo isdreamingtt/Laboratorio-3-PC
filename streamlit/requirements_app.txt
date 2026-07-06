@@ -4,3 +4,4 @@ pandas
 plotly
 wordcloud
 matplotlib
+python-dotenv

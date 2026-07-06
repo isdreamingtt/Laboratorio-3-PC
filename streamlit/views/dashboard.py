@@ -1,6 +1,9 @@
 import streamlit as st
-import requests
 import pandas as pd
+import matplotlib.pyplot as plt
+from wordcloud import WordCloud
+
+from api_client import obtener_dashboard
 
 
 def volver_inicio():
@@ -10,7 +13,7 @@ def volver_inicio():
 
 
 def mostrar_filtros():
-    st.sidebar.header("Filtros del dashboard")
+    st.sidebar.header("Filtros")
 
     testamento = st.sidebar.selectbox(
         "Testamento",
@@ -19,7 +22,7 @@ def mostrar_filtros():
 
     libro = st.sidebar.text_input(
         "Libro",
-        placeholder="Ejemplo: Genesis"
+        placeholder="Ejemplo: Matthew"
     )
 
     capitulo = st.sidebar.number_input(
@@ -42,123 +45,126 @@ def mostrar_filtros():
     return parametros
 
 
-def obtener_datos_dashboard(api_url, parametros):
-    respuesta = requests.get(
-        api_url + "/dashboard",
-        params=parametros
-    )
-
-    respuesta.raise_for_status()
-
-    return respuesta.json()
-
-
-def mostrar_resumen(datos):
+def resumen(datos):
     cantidad_por_libro = datos["cantidad_por_libro"]
     top_palabras = datos["top_palabras"]
 
     total_versiculos = sum(cantidad_por_libro.values())
-    cantidad_libros = len(cantidad_por_libro)
+    total_libros = len(cantidad_por_libro)
 
-    col1, col2, col3 = st.columns(3)
-
+    col1, col2= st.columns(2)
     col1.metric("Versículos encontrados", total_versiculos)
-    col2.metric("Libros encontrados", cantidad_libros)
-    col3.metric("Palabras frecuentes", len(top_palabras))
+    col2.metric("Libros encontrados", total_libros)
 
 
-def mostrar_cantidad_por_libro(datos):
+def cantidad_por_libro(datos):
     st.subheader("Cantidad de versículos por libro")
 
     cantidad_por_libro = datos["cantidad_por_libro"]
 
-    df_cantidad = pd.DataFrame(
+    df = pd.DataFrame(
         list(cantidad_por_libro.items()),
-        columns=["Libro", "Cantidad de versículos"]
+        columns=["Libro", "Cantidad"]
     )
 
-    if len(df_cantidad) == 0:
-        st.warning("No hay datos para los filtros seleccionados.")
+    if len(df) == 0:
+        st.warning("No hay datos, pruebe otros filtros.")
         return
 
-    df_cantidad = df_cantidad.sort_values(
-        "Cantidad de versículos",
-        ascending=False
-    )
+    df = df.sort_values("Cantidad", ascending=False)
 
-    st.bar_chart(df_cantidad.set_index("Libro"))
-    st.dataframe(df_cantidad, use_container_width=True)
+    st.bar_chart(df.set_index("Libro"))
+    st.dataframe(df, use_container_width=True)
 
 
-def mostrar_longitud_promedio(datos):
+def longitud_promedio(datos):
     st.subheader("Longitud promedio de versículos por libro")
 
     longitud_promedio = datos["longitud_promedio_por_libro"]
 
-    df_longitud = pd.DataFrame(
+    df = pd.DataFrame(
         list(longitud_promedio.items()),
         columns=["Libro", "Longitud promedio"]
     )
 
-    if len(df_longitud) == 0:
-        st.warning("No hay datos de longitud promedio.")
+    if len(df) == 0:
+        st.warning("No hay datos, pruebe otros filtros.")
         return
 
-    df_longitud = df_longitud.sort_values(
-        "Longitud promedio",
-        ascending=False
-    )
+    df = df.sort_values("Longitud promedio", ascending=False)
 
-    st.bar_chart(df_longitud.set_index("Libro"))
-    st.dataframe(df_longitud, use_container_width=True)
+    st.bar_chart(df.set_index("Libro"))
+    st.dataframe(df, use_container_width=True)
 
 
-def mostrar_top_palabras(datos):
-    st.subheader("Top palabras más frecuentes")
+def palabras_frecuentes(datos):
+    st.subheader("Listado palabras más frecuentes (top 20)")
 
     top_palabras = datos["top_palabras"]
+    df = pd.DataFrame(top_palabras)
 
-    df_palabras = pd.DataFrame(top_palabras)
-
-    if len(df_palabras) == 0:
-        st.warning("No hay palabras frecuentes para mostrar.")
+    if len(df) == 0:
+        st.warning("No hay palabras que mostrar.")
         return
 
-    st.bar_chart(df_palabras.set_index("palabra"))
-    st.dataframe(df_palabras, use_container_width=True)
+    st.bar_chart(df.set_index("palabra"))
+    st.dataframe(df, use_container_width=True)
 
 
-def mostrar_dashboard(api_url):
+def mostrar_nube_palabras(datos):
+    st.subheader("Nube de palabras")
+
+    top_palabras = datos["top_palabras"]
+    df = pd.DataFrame(top_palabras)
+
+    if len(df) == 0:
+        st.warning("No hay palabras para generar la nube.")
+        return
+
+    frecuencias = {}
+
+    for _, fila in df.iterrows():
+        frecuencias[fila["palabra"]] = int(fila["frecuencia"])
+
+    nube = WordCloud(
+        width=900,
+        height=400,
+        background_color="white"
+    ).generate_from_frequencies(frecuencias)
+
+    figura, eje = plt.subplots(figsize=(12, 5))
+    eje.imshow(nube, interpolation="bilinear")
+    eje.axis("off")
+
+    st.pyplot(figura)
+
+
+def mostrar_dashboard():
     st.title("Dashboard principal")
-
     volver_inicio()
 
     st.write(
-        "Los filtros se envían a la API. La API filtra y calcula los resultados; "
-        "Streamlit solo los muestra."
+        "Recordar que la biblia analizada es la versión BBE (Bible in Basic English), por lo que todas las consultas deben hacerse en inglés."
     )
 
     parametros = mostrar_filtros()
-
     try:
-        datos = obtener_datos_dashboard(api_url, parametros)
+        datos = obtener_dashboard(parametros)
 
     except Exception as error:
-        st.error("No se pudo obtener información desde la API.")
-        st.write("Verifica que la API esté encendida.")
-        st.write(error)
+        st.error(f"No se pudo conectar con la API: {error}")
         return
 
-    mostrar_resumen(datos)
+    resumen(datos)
 
     st.divider()
-
-    mostrar_cantidad_por_libro(datos)
-
-    st.divider()
-
-    mostrar_longitud_promedio(datos)
+    cantidad_por_libro(datos)
 
     st.divider()
+    longitud_promedio(datos)
 
-    mostrar_top_palabras(datos)
+    st.divider()
+    palabras_frecuentes(datos)
+
+    st.divider()
+    mostrar_nube_palabras(datos)
