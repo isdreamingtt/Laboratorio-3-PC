@@ -28,7 +28,8 @@ def test_corpus():
         "primer_texto": corpus["texto"].iloc[0],
         "primer_texto_tokens": corpus["tokens"].iloc[0]
     }
-
+    
+    #"gola"
 
 @app.get("/dashboard")
 def dashboard(testamento: Optional[str] = None, libro: Optional[str] = None, capitulo: Optional[int] = None):
