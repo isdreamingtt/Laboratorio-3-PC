@@ -31,3 +31,18 @@ def buscar_versiculos(consulta, k, modelo):
     }
 
     return api_get(API_URL, "/buscar", parametros)
+
+def obtener_pca_tfidf(dimensiones):
+    parametros = {
+        "dimensiones": dimensiones
+    }
+
+    return api_get(API_URL, "/pca-tfidf", parametros)
+
+
+def obtener_pca_word2vec(dimensiones):
+    parametros = {
+        "dimensiones": dimensiones
+    }
+
+    return api_get(API_URL, "/pca-word2vec", parametros)

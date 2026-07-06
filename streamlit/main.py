@@ -1,6 +1,7 @@
 import streamlit as st
 from views.dashboard import mostrar_dashboard
 from views.buscador import buscador
+from views.visualizador import mostrar_visualizador
 
 def configurar_pagina():
     st.set_page_config(page_title="Laboratorio 3 - Corpus Bíblico", layout="wide")
@@ -20,11 +21,11 @@ def mostrar_inicio():
         - Buscador semántico
         - Visualización con PCA/Word2Vec
         - Generador de texto con n-gramas
-    """)
+    """)    
 
     st.divider()
 
-    col1, col2 = st.columns(2)
+    col1, col2, col3 = st.columns(3)
 
     with col1:
         if st.button("Dashboard principal"):
@@ -34,6 +35,11 @@ def mostrar_inicio():
         if st.button("Buscador semántico"):
             st.session_state["pagina"] = "buscador"
             st.rerun()
+    with col3: 
+        if st.button("Visualización PCA/Word2Vec"):
+            st.session_state["pagina"] = "visualizador"
+            st.rerun()        
+    
 
 
 def main():
@@ -46,7 +52,8 @@ def main():
         mostrar_dashboard()
     elif st.session_state["pagina"] == "buscador":  
         buscador()
-
+    elif st.session_state["pagina"] == "visualizador":
+        mostrar_visualizador()
 
 if __name__ == "__main__":
     main()
