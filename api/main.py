@@ -250,21 +250,56 @@ def pca_word2vec(dimensiones: int = 2):
     }
 
 @app.get("/generar")
-def generar(modelo: str, palabra_inicial: str, max_palabras: int = 20):
-    palabra_inicial = palabra_inicial.lower()
+def generar(modelo: str, palabra_inicial: str, max_palabras: int = 20, cantidad_resultados: int = 1):
+    palabra_inicial = palabra_inicial.lower()   
 
-    if palabra_inicial not in generador_ngramas.unigramas:
-        return {"error": "La palabra inicial no está en el vocabulario del corpus"}
+    if cantidad_resultados < 1:
+        cantidad_resultados = 1
 
-    if modelo == "unigrama":
-        texto = generador_ngramas.generar_unigrama(palabra_inicial, max_palabras)
-    elif modelo == "bigrama":
-        texto = generador_ngramas.generar_bigrama(palabra_inicial, max_palabras)
-    elif modelo == "trigrama":
-        texto = generador_ngramas.generar_trigrama(palabra_inicial, max_palabras)
-    elif modelo == "cuatrigrama":
-        texto = generador_ngramas.generar_cuatrigrama(palabra_inicial, max_palabras)
-    else:
-        return {"error": "Modelo no válido. Usa: unigrama, bigrama, trigrama o cuatrigrama"}
+    if cantidad_resultados > 10: #se establece un límite de 10 resultados para evitar sobrecargar la API
+        cantidad_resultados = 10
 
-    return {"modelo": modelo, "texto_generado": texto}
+    resultados_generados = []
+
+
+    for i in range(cantidad_resultados):
+
+        if modelo == "unigrama":
+            texto = generador_ngramas.generar_unigrama(
+                palabra_inicial,
+                max_palabras
+            )
+
+        elif modelo == "bigrama":
+            texto = generador_ngramas.generar_bigrama(
+                palabra_inicial,
+                max_palabras
+            )
+
+        elif modelo == "trigrama":
+            texto = generador_ngramas.generar_trigrama(
+                palabra_inicial,
+                max_palabras
+            )
+
+        elif modelo == "cuatrigrama":
+            texto = generador_ngramas.generar_cuatrigrama(
+                palabra_inicial,
+                max_palabras
+            )
+
+        else:
+            return {
+                "error": "Modelo no válido. Usa: unigrama, bigrama, trigrama o cuatrigrama"
+            }
+
+        resultados_generados.append(texto)
+
+
+
+    return {
+        "modelo": modelo,
+        "palabra_inicial": palabra_inicial,
+        "cantidad_resultados": cantidad_resultados,
+        "resultados_generados": resultados_generados
+    }

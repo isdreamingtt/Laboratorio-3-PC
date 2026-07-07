@@ -46,3 +46,13 @@ def obtener_pca_word2vec(dimensiones):
     }
 
     return api_get(API_URL, "/pca-word2vec", parametros)
+
+def generar_versiculo(modelo, palabra_inicial, max_palabras, cantidad_resultados):
+    parametros = {
+        "modelo": modelo,
+        "palabra_inicial": palabra_inicial,
+        "max_palabras": max_palabras,
+        "cantidad_resultados": cantidad_resultados
+    }
+
+    return api_get(API_URL, "/generar", parametros)

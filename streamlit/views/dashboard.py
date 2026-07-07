@@ -21,8 +21,7 @@ def mostrar_filtros():
     )
 
     libro = st.sidebar.text_input(
-        "Libro",
-        placeholder="Ejemplo: Matthew"
+        "Libro"
     )
 
     capitulo = st.sidebar.number_input(

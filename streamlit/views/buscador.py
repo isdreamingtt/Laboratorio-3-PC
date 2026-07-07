@@ -14,8 +14,7 @@ def parametros_busqueda():
     st.subheader("Buscar versículos similares")
 
     consulta = st.text_input(
-        "Escribe una frase para buscar",
-        placeholder="Ejemplo: love your enemies"
+        "Escribe una frase para buscar"
     )
 
     modelo = st.selectbox(
